@@ -32,11 +32,19 @@ end
 
 function Utility.Create(ClassName, Properties, Children)
     local Object = Instance.new(ClassName)
+    
+    -- Make sure Text property is always a string, not a table
     if Properties then
         for Property, Value in pairs(Properties) do
-            Object[Property] = Value
+            -- Convert any potential table values to strings for Text property
+            if Property == "Text" and type(Value) ~= "string" then
+                Object[Property] = tostring(Value)
+            else
+                Object[Property] = Value
+            end
         end
     end
+    
     if Children then
         for _, Child in pairs(Children) do
             Child.Parent = Object
@@ -84,7 +92,7 @@ function AzuraUI.Create(Options)
         IgnoreGuiInset = true
     })
     
-    -- Fixed: Corrected the executor check
+    -- Fixed executor check
     if syn and syn.protect_gui then
         syn.protect_gui(ScreenGui)
         ScreenGui.Parent = CoreGui
@@ -211,9 +219,8 @@ function AzuraUI.Create(Options)
         end
     end)
     
-    -- Fixed: Use RunService for smoother dragging
-    local connection
-    connection = RunService.RenderStepped:Connect(function()
+    -- Fixed dragging with RenderStepped
+    RunService.RenderStepped:Connect(function()
         if Dragging then
             local MousePos = UserInputService:GetMouseLocation()
             local Delta = Vector2.new(MousePos.X - DragStart.X, MousePos.Y - DragStart.Y)
@@ -230,7 +237,7 @@ function AzuraUI.Create(Options)
         Parent = MainFrame
     }, {
         Utility.Create("UICorner", { CornerRadius = UDim.new(0, 12) }),
-        Utility.Create("Frame", { -- Corner fix
+        Utility.Create("Frame", {
             Size = UDim2.new(0, 20, 1, 0),
             Position = UDim2.new(1, -20, 0, 0),
             BackgroundColor3 = Theme.Sidebar,
@@ -363,7 +370,6 @@ function AzuraUI.Create(Options)
     end)
     
     -- TAB MANAGEMENT
-    local Tabs = {}
     local CurrentTab = nil
     
     local function SelectTab(TabData)
@@ -378,6 +384,9 @@ function AzuraUI.Create(Options)
     
     -- SECTION & ELEMENT CREATION
     local function CreateSection(Container, SectionTitle)
+        -- Ensure SectionTitle is a string
+        local TitleString = tostring(SectionTitle)
+        
         local SectionFrame = Utility.Create("Frame", {
             Size = UDim2.new(1, 0, 0, 0),
             AutomaticSize = Enum.AutomaticSize.Y,
@@ -390,7 +399,7 @@ function AzuraUI.Create(Options)
                 Size = UDim2.new(1, -20, 0, 25),
                 Position = UDim2.new(0, 15, 0, 5),
                 BackgroundTransparency = 1,
-                Text = SectionTitle,
+                Text = TitleString,
                 TextColor3 = Theme.Accent,
                 TextSize = 14,
                 Font = Enum.Font.GothamBold,
@@ -418,6 +427,8 @@ function AzuraUI.Create(Options)
         
         -- BUTTON
         function Section:Button(Name, Callback)
+            local ButtonName = tostring(Name)
+            
             local Button = Utility.Create("TextButton", {
                 Size = UDim2.new(1, 0, 0, 35),
                 BackgroundColor3 = Theme.TabBackground,
@@ -430,7 +441,7 @@ function AzuraUI.Create(Options)
                     Size = UDim2.new(1, -20, 1, 0),
                     Position = UDim2.new(0, 15, 0, 0),
                     BackgroundTransparency = 1,
-                    Text = Name,
+                    Text = ButtonName,
                     TextColor3 = Theme.Text,
                     TextSize = 13,
                     Font = Enum.Font.GothamSemibold,
@@ -451,6 +462,7 @@ function AzuraUI.Create(Options)
         
         -- TOGGLE
         function Section:Toggle(Name, Default, Callback)
+            local ToggleName = tostring(Name)
             local Toggled = Default or false
             
             local ToggleFrame = Utility.Create("Frame", {
@@ -463,7 +475,7 @@ function AzuraUI.Create(Options)
                     Size = UDim2.new(1, -60, 1, 0),
                     Position = UDim2.new(0, 15, 0, 0),
                     BackgroundTransparency = 1,
-                    Text = Name,
+                    Text = ToggleName,
                     TextColor3 = Theme.Text,
                     TextSize = 13,
                     Font = Enum.Font.GothamSemibold,
@@ -524,6 +536,7 @@ function AzuraUI.Create(Options)
         
         -- SLIDER
         function Section:Slider(Name, Min, Max, Default, Callback)
+            local SliderName = tostring(Name)
             local Value = Default or Min
             
             local SliderFrame = Utility.Create("Frame", {
@@ -536,7 +549,7 @@ function AzuraUI.Create(Options)
                     Size = UDim2.new(1, -20, 0, 20),
                     Position = UDim2.new(0, 15, 0, 5),
                     BackgroundTransparency = 1,
-                    Text = Name,
+                    Text = SliderName,
                     TextColor3 = Theme.Text,
                     TextSize = 13,
                     Font = Enum.Font.GothamSemibold,
@@ -587,8 +600,7 @@ function AzuraUI.Create(Options)
             local ValueLabel = SliderFrame.ValueLabel
             local Sliding = false
             
-            local function UpdateSlider(Input)
-                -- Fixed: Get mouse position from UserInputService
+            local function UpdateSlider()
                 local MousePos = UserInputService:GetMouseLocation()
                 local Percent = math.clamp((MousePos.X - SliderBar.AbsolutePosition.X) / SliderBar.AbsoluteSize.X, 0, 1)
                 Value = Utility.Round(Min + (Max - Min) * Percent, 1)
@@ -602,7 +614,7 @@ function AzuraUI.Create(Options)
             SliderBar.InputBegan:Connect(function(Input)
                 if Input.UserInputType == Enum.UserInputType.MouseButton1 then
                     Sliding = true
-                    UpdateSlider(Input)
+                    UpdateSlider()
                 end
             end)
             
@@ -612,17 +624,17 @@ function AzuraUI.Create(Options)
                 end
             end)
             
-            -- Global input detection for smooth sliding
             UserInputService.InputChanged:Connect(function(Input)
                 if Sliding and Input.UserInputType == Enum.UserInputType.MouseMovement then
-                    UpdateSlider(Input)
+                    UpdateSlider()
                 end
             end)
         end
         
         -- DROPDOWN
         function Section:Dropdown(Name, Options, Default, Callback)
-            local Selected = Default or Options[1] or "Select..."
+            local DropdownName = tostring(Name)
+            local Selected = Default or (Options[1] and tostring(Options[1])) or "Select..."
             local Open = false
             
             local DropdownFrame = Utility.Create("Frame", {
@@ -678,6 +690,7 @@ function AzuraUI.Create(Options)
                 end
                 
                 for _, option in pairs(Options) do
+                    local OptionText = tostring(option)
                     local Btn = Utility.Create("TextButton", {
                         Size = UDim2.new(1, 0, 0, 28),
                         BackgroundTransparency = 1,
@@ -689,7 +702,7 @@ function AzuraUI.Create(Options)
                             Size = UDim2.new(1, -20, 1, 0),
                             Position = UDim2.new(0, 15, 0, 0),
                             BackgroundTransparency = 1,
-                            Text = option,
+                            Text = OptionText,
                             TextColor3 = Theme.Text,
                             TextSize = 12,
                             Font = Enum.Font.Gotham,
@@ -706,8 +719,8 @@ function AzuraUI.Create(Options)
                     end)
                     
                     Btn.MouseButton1Click:Connect(function()
-                        Selected = option
-                        SelectedLabel.Text = option
+                        Selected = OptionText
+                        SelectedLabel.Text = OptionText
                         Open = false
                         Utility.Tween(DropdownFrame, 0.2, { Size = UDim2.new(1, 0, 0, 35) })
                         if Callback then
@@ -733,6 +746,9 @@ function AzuraUI.Create(Options)
         
         -- TEXTBOX
         function Section:Textbox(Name, Placeholder, Callback)
+            local TextboxName = tostring(Name)
+            local PlaceholderText = tostring(Placeholder or "Enter text...")
+            
             local TextboxFrame = Utility.Create("Frame", {
                 Size = UDim2.new(1, 0, 0, 50),
                 BackgroundColor3 = Theme.TabBackground,
@@ -743,7 +759,7 @@ function AzuraUI.Create(Options)
                     Size = UDim2.new(1, -20, 0, 20),
                     Position = UDim2.new(0, 15, 0, 5),
                     BackgroundTransparency = 1,
-                    Text = Name,
+                    Text = TextboxName,
                     TextColor3 = Theme.Text,
                     TextSize = 13,
                     Font = Enum.Font.GothamSemibold,
@@ -755,7 +771,7 @@ function AzuraUI.Create(Options)
                     Position = UDim2.new(0, 15, 0, 28),
                     BackgroundColor3 = Theme.Background,
                     Text = "",
-                    PlaceholderText = Placeholder or "Enter text...",
+                    PlaceholderText = PlaceholderText,
                     PlaceholderColor3 = Theme.TextDim,
                     TextColor3 = Theme.Text,
                     TextSize = 12,
@@ -775,6 +791,7 @@ function AzuraUI.Create(Options)
         
         -- KEYBIND
         function Section:Keybind(Name, Default, Callback)
+            local KeybindName = tostring(Name)
             local Key = Default or Enum.KeyCode.Unknown
             local Listening = false
             
@@ -788,7 +805,7 @@ function AzuraUI.Create(Options)
                     Size = UDim2.new(1, -80, 1, 0),
                     Position = UDim2.new(0, 15, 0, 0),
                     BackgroundTransparency = 1,
-                    Text = Name,
+                    Text = KeybindName,
                     TextColor3 = Theme.Text,
                     TextSize = 13,
                     Font = Enum.Font.GothamSemibold,
@@ -837,11 +854,11 @@ function AzuraUI.Create(Options)
         
         -- COLOR PICKER
         function Section:ColorPicker(Name, Default, Callback)
+            local PickerName = tostring(Name)
             local Color = Default or Color3.fromRGB(255, 255, 255)
             local Open = false
             local Hue, Sat, Val = 0, 1, 1
             
-            -- Convert RGB to HSV for default color
             local h, s, v = Color3.toHSV(Color)
             Hue = h
             Sat = s
@@ -858,7 +875,7 @@ function AzuraUI.Create(Options)
                     Size = UDim2.new(1, -60, 1, 0),
                     Position = UDim2.new(0, 15, 0, 0),
                     BackgroundTransparency = 1,
-                    Text = Name,
+                    Text = PickerName,
                     TextColor3 = Theme.Text,
                     TextSize = 13,
                     Font = Enum.Font.GothamSemibold,
@@ -970,7 +987,6 @@ function AzuraUI.Create(Options)
                 end
             end
             
-            -- Drag logic for Hue/Sat
             local DraggingHue, DraggingSat = false, false
             
             HueBar.InputBegan:Connect(function(Input)
@@ -1020,13 +1036,15 @@ function AzuraUI.Create(Options)
             end)
         end
         
-        -- LABEL (Fixed: Changed name from Paragraph to Label)
+        -- LABEL
         function Section:Label(Text)
+            local LabelText = tostring(Text)
+            
             Utility.Create("TextLabel", {
                 Size = UDim2.new(1, 0, 0, 0),
                 AutomaticSize = Enum.AutomaticSize.Y,
                 BackgroundTransparency = 1,
-                Text = Text,
+                Text = LabelText,
                 TextColor3 = Theme.TextDim,
                 TextSize = 12,
                 Font = Enum.Font.Gotham,
@@ -1041,6 +1059,9 @@ function AzuraUI.Create(Options)
     
     -- CREATE TAB FUNCTION
     local function CreateTab(Name)
+        -- Ensure Name is a string, not a table
+        local TabName = tostring(Name)
+        
         local TabButton = Utility.Create("TextButton", {
             Size = UDim2.new(1, 0, 0, 35),
             BackgroundColor3 = Theme.Sidebar,
@@ -1053,7 +1074,7 @@ function AzuraUI.Create(Options)
                 Size = UDim2.new(1, -20, 1, 0),
                 Position = UDim2.new(0, 15, 0, 0),
                 BackgroundTransparency = 1,
-                Text = Name,
+                Text = TabName,  -- This is now guaranteed to be a string
                 TextColor3 = Theme.Text,
                 TextSize = 13,
                 Font = Enum.Font.GothamSemibold,
@@ -1062,7 +1083,7 @@ function AzuraUI.Create(Options)
         })
         
         local ContentFrame = Utility.Create("ScrollingFrame", {
-            Name = Name .. "Content",
+            Name = TabName .. "Content",
             Size = UDim2.new(1, 0, 1, 0),
             BackgroundTransparency = 1,
             ScrollBarThickness = 4,
@@ -1114,7 +1135,7 @@ function AzuraUI.Create(Options)
         return TabData
     end
     
-    -- TOGGLE KEYBIND (Fixed: Changed to F4 to avoid conflict)
+    -- TOGGLE KEYBIND (Fixed: Changed to F4)
     UserInputService.InputBegan:Connect(function(Input, GPE)
         if GPE then return end
         if Input.KeyCode == Enum.KeyCode.F4 then
