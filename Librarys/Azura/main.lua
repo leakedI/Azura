@@ -1,14 +1,12 @@
 --[[
-    Azura UI Library
-    A smooth, modern UI library with sidebar, tabs, notifications, and more.
-    Created with smooth animations and a clean design.
+    Azura UI Library (Fixed & Improved)
+    Features: Sidebar, Tabs, Notifications, Toggles, Sliders, Dropdowns, Keybinds, ColorPicker, and more.
+    Smooth animations and modern design.
 ]]
 
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
-
-local AzuraUI = {}
 
 -- ─────────────────────────────────────────────────────────────────────────────
 -- SERVICES & UTILITIES
@@ -16,18 +14,21 @@ local AzuraUI = {}
 
 local Utility = {}
 
-Utility.Tween = function(Object, Time, Properties)
+-- Smooth tweening function
+function Utility.Tween(Object, Time, Properties)
     local Tween = TweenService:Create(Object, TweenInfo.new(Time, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), Properties)
     Tween:Play()
     return Tween
 end
 
-Utility.Round = function(Number, DecimalPlaces)
+-- Rounding numbers for sliders
+function Utility.Round(Number, DecimalPlaces)
     local Multiplier = 10 ^ (DecimalPlaces or 0)
     return math.floor(Number * Multiplier + 0.5) / Multiplier
 end
 
-Utility.Create = function(ClassName, Properties, Children)
+-- Helper to create instances quickly
+function Utility.Create(ClassName, Properties, Children)
     local Object = Instance.new(ClassName)
     
     for Property, Value in pairs(Properties or {}) do
@@ -68,7 +69,6 @@ local Theme = {
 -- ─────────────────────────────────────────────────────────────────────────────
 
 local NotificationHolder = nil
-local ActiveNotifications = 0
 
 local function SetupNotifications(ScreenGui)
     NotificationHolder = Utility.Create("Frame", {
@@ -78,13 +78,12 @@ local function SetupNotifications(ScreenGui)
         AnchorPoint = Vector2.new(0, 0),
         BackgroundTransparency = 1,
         Parent = ScreenGui
-    })
-    
-    Utility.Create("UIListLayout", {
-        Name = "Layout",
-        SortOrder = Enum.SortOrder.LayoutOrder,
-        Padding = UDim.new(0, 10),
-        Parent = NotificationHolder
+    }, {
+        Utility.Create("UIListLayout", {
+            Name = "Layout",
+            SortOrder = Enum.SortOrder.LayoutOrder,
+            Padding = UDim.new(0, 10)
+        })
     })
 end
 
@@ -103,7 +102,7 @@ local function Notify(Title, Message, Type, Duration)
     
     local Notification = Utility.Create("Frame", {
         Name = "Notification",
-        Size = UDim2.new(1, 0, 0, 0),
+        Size = UDim2.new(1, 0, 0, 0), -- Start collapsed
         BackgroundColor3 = Theme.ElementBackground,
         ClipsDescendants = true,
         Parent = NotificationHolder
@@ -153,17 +152,16 @@ local function Notify(Title, Message, Type, Duration)
         })
     })
     
-    -- Animate in
-    Notification.Size = UDim2.new(1, 0, 0, 0)
+    -- Animate In
     Utility.Tween(Notification, 0.3, {Size = UDim2.new(1, 0, 0, 70)})
     
-    -- Timer animation
+    -- Timer Animation
     local TimerBar = Notification:FindFirstChild("TimerBar")
     if TimerBar then
         Utility.Tween(TimerBar, Duration, {Size = UDim2.new(0, 0, 0, 3)})
     end
     
-    -- Animate out
+    -- Animate Out
     task.delay(Duration, function()
         Utility.Tween(Notification, 0.3, {Size = UDim2.new(1, 0, 0, 0)})
         task.wait(0.3)
@@ -175,6 +173,8 @@ end
 -- MAIN UI CREATION
 -- ─────────────────────────────────────────────────────────────────────────────
 
+local AzuraUI = {}
+
 function AzuraUI.Create(Options)
     Options = Options or {}
     local Title = Options.Title or "Azura UI"
@@ -184,8 +184,12 @@ function AzuraUI.Create(Options)
         Name = "AzuraUI",
         ResetOnSpawn = false,
         ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
-        IgnoreGuiInset = true
+        IgnoreGuiInset = true,
+        Parent = game.CoreGui -- Use game.CoreGui to ensure it stays
     })
+    
+    -- Setup Notifications
+    SetupNotifications(ScreenGui)
     
     -- Main Container
     local MainFrame = Utility.Create("Frame", {
@@ -234,7 +238,7 @@ function AzuraUI.Create(Options)
         Parent = MainFrame
     }, {
         Utility.Create("UICorner", {CornerRadius = UDim.new(0, 12)}),
-        Utility.Create("Frame", {
+        Utility.Create("Frame", { -- Fixes the corner gap
             Name = "CornerFix",
             Size = UDim2.new(0, 20, 1, 0),
             Position = UDim2.new(1, -20, 0, 0),
@@ -345,7 +349,7 @@ function AzuraUI.Create(Options)
         Utility.Tween(MainFrame, 0.3, {Size = UDim2.new(0, 650, 0, 0)})
         task.wait(0.3)
         ScreenGui.Enabled = false
-        MainFrame.Size = UDim2.new(0, 650, 0, 450)
+        MainFrame.Size = UDim2.new(0, 650, 0, 450) -- Reset size for next open
     end)
     
     -- Minimize Button
@@ -381,9 +385,6 @@ function AzuraUI.Create(Options)
         end
     end)
     
-    -- Setup Notifications
-    SetupNotifications(ScreenGui)
-    
     -- Tab Management
     local Tabs = {}
     local CurrentTab = nil
@@ -399,14 +400,10 @@ function AzuraUI.Create(Options)
     end
     
     -- ─────────────────────────────────────────────────────────────────────────
-    -- TAB CREATION
+    -- ELEMENT CREATION FUNCTIONS
     -- ─────────────────────────────────────────────────────────────────────────
     
-    local TabMethods = {}
-    
-    function TabMethods:CreateSection(SectionTitle)
-        local Container = self.Content
-        
+    local function CreateSection(Container, SectionTitle)
         local SectionFrame = Utility.Create("Frame", {
             Name = "Section",
             Size = UDim2.new(1, 0, 0, 0),
@@ -730,10 +727,9 @@ function AzuraUI.Create(Options)
             local OptionContainer = DropdownFrame:FindFirstChild("OptionContainer")
             
             local function RefreshOptions()
+                -- Clear old
                 for _, Child in pairs(OptionContainer:GetChildren()) do
-                    if Child:IsA("TextButton") then
-                        Child:Destroy()
-                    end
+                    if Child:IsA("TextButton") then Child:Destroy() end
                 end
                 
                 for _, Option in pairs(Options) do
@@ -760,7 +756,6 @@ function AzuraUI.Create(Options)
                     OptionBtn.MouseEnter:Connect(function()
                         Utility.Tween(OptionBtn, 0.1, {BackgroundTransparency = 0})
                     end)
-                    
                     OptionBtn.MouseLeave:Connect(function()
                         Utility.Tween(OptionBtn, 0.1, {BackgroundTransparency = 1})
                     end)
@@ -794,9 +789,7 @@ function AzuraUI.Create(Options)
                     SelectedLabel.Text = Selected
                     Callback(Selected)
                 end,
-                Get = function()
-                    return Selected
-                end,
+                Get = function() return Selected end,
                 Refresh = function(NewOptions)
                     Options = NewOptions
                     RefreshOptions()
@@ -844,18 +837,13 @@ function AzuraUI.Create(Options)
             })
             
             local Input = TextboxFrame:FindFirstChild("Input")
-            
             Input.FocusLost:Connect(function(enterPressed)
                 Callback(Input.Text, enterPressed)
             end)
             
             return {
-                Set = function(Text)
-                    Input.Text = Text
-                end,
-                Get = function()
-                    return Input.Text
-                end
+                Set = function(Text) Input.Text = Text end,
+                Get = function() return Input.Text end
             }
         end
         
@@ -924,9 +912,7 @@ function AzuraUI.Create(Options)
                     Key = NewKey
                     KeyButton.Text = Key.Name
                 end,
-                Get = function()
-                    return Key
-                end
+                Get = function() return Key end
             }
         end
         
@@ -981,7 +967,7 @@ function AzuraUI.Create(Options)
                     }),
                     Utility.Create("Frame", {
                         Name = "HueBar",
-                        Size = UDim2.new(1, 0, 0, 15),
+                        Size = UDim2.new(1, -50, 0, 15),
                         Position = UDim2.new(0, 50, 0, 0),
                         BackgroundColor3 = Color3.fromRGB(255, 0, 0),
                         BorderSizePixel = 0
@@ -1052,7 +1038,7 @@ function AzuraUI.Create(Options)
                 Callback(Color)
             end
             
-            -- Hue dragging
+            -- Hue Logic
             local HueDragging = false
             HueBar.InputBegan:Connect(function(Input)
                 if Input.UserInputType == Enum.UserInputType.MouseButton1 then
@@ -1064,22 +1050,7 @@ function AzuraUI.Create(Options)
                 end
             end)
             
-            UserInputService.InputEnded:Connect(function(Input)
-                if Input.UserInputType == Enum.UserInputType.MouseButton1 then
-                    HueDragging = false
-                end
-            end)
-            
-            UserInputService.InputChanged:Connect(function(Input)
-                if Input.UserInputType == Enum.UserInputType.MouseMovement and HueDragging then
-                    local Percent = math.clamp((Input.Position.X - HueBar.AbsolutePosition.X) / HueBar.AbsoluteSize.X, 0, 1)
-                    Hue = Percent
-                    HueSelector.Position = UDim2.new(Percent, 0, 0, 0)
-                    UpdateColor()
-                end
-            end)
-            
-            -- Sat dragging
+            -- Sat Logic
             local SatDragging = false
             SatBar.InputBegan:Connect(function(Input)
                 if Input.UserInputType == Enum.UserInputType.MouseButton1 then
@@ -1091,22 +1062,33 @@ function AzuraUI.Create(Options)
                 end
             end)
             
+            -- Global Input Ended
             UserInputService.InputEnded:Connect(function(Input)
                 if Input.UserInputType == Enum.UserInputType.MouseButton1 then
+                    HueDragging = false
                     SatDragging = false
                 end
             end)
             
+            -- Global Input Changed
             UserInputService.InputChanged:Connect(function(Input)
-                if Input.UserInputType == Enum.UserInputType.MouseMovement and SatDragging then
-                    local Percent = math.clamp((Input.Position.X - SatBar.AbsolutePosition.X) / SatBar.AbsoluteSize.X, 0, 1)
-                    Sat = Percent
-                    SatSelector.Position = UDim2.new(Percent, 0, 0, 0)
-                    UpdateColor()
+                if Input.UserInputType == Enum.UserInputType.MouseMovement then
+                    if HueDragging then
+                        local Percent = math.clamp((Input.Position.X - HueBar.AbsolutePosition.X) / HueBar.AbsoluteSize.X, 0, 1)
+                        Hue = Percent
+                        HueSelector.Position = UDim2.new(Percent, 0, 0, 0)
+                        UpdateColor()
+                    end
+                    if SatDragging then
+                        local Percent = math.clamp((Input.Position.X - SatBar.AbsolutePosition.X) / SatBar.AbsoluteSize.X, 0, 1)
+                        Sat = Percent
+                        SatSelector.Position = UDim2.new(Percent, 0, 0, 0)
+                        UpdateColor()
+                    end
                 end
             end)
             
-            -- Toggle open
+            -- Toggle Open
             PickerFrame.InputBegan:Connect(function(Input)
                 if Input.UserInputType == Enum.UserInputType.MouseButton1 and not Open then
                     Open = true
@@ -1114,9 +1096,9 @@ function AzuraUI.Create(Options)
                 end
             end)
             
+            -- Close on outside click
             UserInputService.InputBegan:Connect(function(Input)
                 if Input.UserInputType == Enum.UserInputType.MouseButton1 and Open then
-                    if not PickerFrame.AbsolutePosition then return end
                     local MousePos = UserInputService:GetMouseLocation()
                     local FramePos = PickerFrame.AbsolutePosition
                     local FrameSize = PickerFrame.AbsoluteSize
@@ -1135,9 +1117,7 @@ function AzuraUI.Create(Options)
                     Hue, Sat, Val = Color3.toHSV(Color)
                     ColorPreview.BackgroundColor3 = Color
                 end,
-                Get = function()
-                    return Color
-                end
+                Get = function() return Color end
             }
         end
         
@@ -1156,14 +1136,13 @@ function AzuraUI.Create(Options)
                 TextXAlignment = Enum.TextXAlignment.Left,
                 Parent = ElementContainer
             })
-            
             return Label
         end
         
         return Section
     end
     
-    -- API for creating tabs
+    -- Tab Creation Function
     local function CreateTab(Name, Icon)
         local TabButton = Utility.Create("TextButton", {
             Name = Name,
@@ -1227,7 +1206,9 @@ function AzuraUI.Create(Options)
         local Tab = {
             Button = TabButton,
             Content = ContentFrame,
-            CreateSection = TabMethods.CreateSection
+            CreateSection = function(self, Title)
+                return CreateSection(self.Content, Title)
+            end
         }
         
         -- Auto-select first tab
@@ -1258,6 +1239,7 @@ function AzuraUI.Create(Options)
         CreateTab = CreateTab
     }
     
+    -- Global access (optional, commonly used in exploit environments)
     if getgenv then
         getgenv().AzuraUI = UI
     end
